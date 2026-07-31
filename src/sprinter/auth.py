@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
@@ -11,7 +10,7 @@ from typing import Any
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from sprinter.config import Settings, TokenRecord
+from sprinter.config import Settings, TokenRecord, verify_token
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -30,10 +29,9 @@ class TokenAuthenticator:
         self.records: tuple[TokenRecord, ...] = settings.token_records
 
     def authenticate(self, token: str) -> Principal | None:
-        digest = Settings.hash_token(token)
         matched: TokenRecord | None = None
         for record in self.records:
-            if hmac.compare_digest(digest, record.digest):
+            if verify_token(token, record.verifier):
                 matched = record
         if not matched:
             return None

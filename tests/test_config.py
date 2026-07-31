@@ -1,25 +1,23 @@
 from __future__ import annotations
 
-import hashlib
-
 import pytest
 from pydantic import ValidationError
 
-from sprinter.config import Settings, parse_token_records
+from sprinter.config import Settings, make_token_verifier, parse_token_records, verify_token
 
 
 def test_token_records_are_strict() -> None:
-    digest = hashlib.sha256(b"token").hexdigest()
-    record = parse_token_records(f"operator:{digest}:jobs:read,tools:splunk")[0]
+    verifier = make_token_verifier("token", b"\x02" * 16)
+    record = parse_token_records(f"operator:{verifier}:jobs:read,tools:splunk")[0]
     assert record.name == "operator"
     assert record.scopes == {"jobs:read", "tools:splunk"}
+    assert verify_token("token", record.verifier)
+    assert not verify_token("wrong", record.verifier)
 
-    with pytest.raises(ValueError, match="SHA-256"):
-        parse_token_records("operator:not-a-digest:admin")
-    with pytest.raises(ValueError, match="placeholder"):
-        parse_token_records(f"operator:{'0' * 64}:admin")
+    with pytest.raises(ValueError, match="scrypt verifier"):
+        parse_token_records("operator:not-a-verifier:admin")
     with pytest.raises(ValueError, match="unknown scopes"):
-        parse_token_records(f"operator:{digest}:root")
+        parse_token_records(f"operator:{verifier}:root")
 
 
 def test_legacy_environment_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -49,7 +47,30 @@ def test_secret_file_must_be_private(settings: Settings, tmp_path) -> None:
             "splunk_username": "svc",
             "splunk_password_file": secret,
             "splunk_allowed_indexes": "security",
+            "splunk_results_index": "security",
         }
     )
     with pytest.raises(ValueError, match="private readable file"):
         unsafe.validate_runtime("api")
+
+
+def test_splunk_results_index_must_be_explicit_and_allowlisted(settings: Settings, tmp_path) -> None:
+    secret = tmp_path / "splunk.secret"
+    secret.write_text("secret")
+    secret.chmod(0o600)
+    configured = settings.model_copy(
+        update={
+            "splunk_base_url": "https://splunk.example",
+            "splunk_username": "svc",
+            "splunk_password_file": secret,
+            "splunk_allowed_indexes": "security,detection_results",
+        }
+    )
+    with pytest.raises(ValueError, match="SPRINTER_SPLUNK_RESULTS_INDEX is required"):
+        configured.validate_runtime("api")
+
+    configured = configured.model_copy(update={"splunk_results_index": "other"})
+    with pytest.raises(ValueError, match="must be included"):
+        configured.validate_runtime("api")
+
+    configured.model_copy(update={"splunk_results_index": "detection_results"}).validate_runtime("api")

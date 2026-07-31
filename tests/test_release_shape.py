@@ -38,10 +38,12 @@ def test_container_and_compose_are_hardened() -> None:
     assert "USER 10001:10001" in dockerfile
     assert "sha256:" in dockerfile
     assert "0.83.0" in dockerfile or "package-lock.json" in dockerfile
+    assert "site-packages/pip-*.dist-info" in dockerfile
     for service in compose["services"].values():
         assert service["read_only"] is True
         assert service["cap_drop"] == ["ALL"]
         assert service["security_opt"] == ["no-new-privileges:true"]
+        assert any("/run/secrets/sprinter:ro" in volume for volume in service["volumes"])
     assert compose["services"]["api"]["ports"] == ["127.0.0.1:8080:8080"]
 
 

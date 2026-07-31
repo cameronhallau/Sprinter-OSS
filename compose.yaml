@@ -19,6 +19,7 @@ x-service-defaults: &service-defaults
     - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=0700
   volumes:
     - sprinter_data:/var/lib/sprinter
+    - ${SPRINTER_SECRETS_DIR:-./secrets}:/run/secrets/sprinter:ro
   deploy:
     resources:
       limits:
@@ -60,6 +61,7 @@ services:
     volumes:
       - sprinter_data:/var/lib/sprinter
       - pi_auth:/home/sprinter/.pi/agent
+      - ${SPRINTER_SECRETS_DIR:-./secrets}:/run/secrets/sprinter:ro
 
 volumes:
   sprinter_data: {}

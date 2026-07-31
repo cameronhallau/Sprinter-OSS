@@ -39,7 +39,12 @@ ENV PATH="/app/.venv/bin:/opt/pi/node_modules/.bin:${PATH}" \
     PI_SKIP_VERSION_CHECK=1
 RUN groupadd --gid 10001 sprinter \
     && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin sprinter \
-    && install -d -o sprinter -g sprinter -m 0700 /var/lib/sprinter /home/sprinter/.pi/agent
+    && install -d -o sprinter -g sprinter -m 0700 /var/lib/sprinter /home/sprinter/.pi/agent \
+    && rm -rf /usr/local/lib/python3.12/site-packages/pip \
+        /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+        /usr/local/bin/pip \
+        /usr/local/bin/pip3 \
+        /usr/local/bin/pip3.12
 COPY --from=build --chown=sprinter:sprinter /app/.venv /app/.venv
 COPY --from=pi /opt/pi /opt/pi
 COPY --from=pi /usr/local/bin/node /usr/local/bin/node

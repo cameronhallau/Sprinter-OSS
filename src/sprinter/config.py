@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
 import re
 from functools import lru_cache
@@ -11,7 +12,10 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PI_VERSION = "0.83.0"
-TOKEN_DIGEST = re.compile(r"^[0-9a-f]{64}$")
+SCRYPT_N = 2**14
+SCRYPT_R = 8
+SCRYPT_P = 1
+TOKEN_VERIFIER = re.compile(r"^scrypt_16384_8_1_([0-9a-f]{32})_([0-9a-f]{64})$")
 ALL_SCOPES = frozenset(
     {
         "reviews:write",
@@ -28,7 +32,7 @@ ALL_SCOPES = frozenset(
 
 class TokenRecord(BaseSettings):
     name: str
-    digest: str
+    verifier: str
     scopes: frozenset[str]
 
     model_config = SettingsConfigDict(frozen=True)
@@ -42,27 +46,49 @@ def read_secret(value: SecretStr | None, file_path: Path | None) -> str:
     return ""
 
 
+def make_token_verifier(token: str, salt: bytes | None = None) -> str:
+    salt = salt or os.urandom(16)
+    if len(salt) != 16:
+        raise ValueError("token verifier salt must contain 16 bytes")
+    digest = hashlib.scrypt(
+        token.encode("utf-8"),
+        salt=salt,
+        n=SCRYPT_N,
+        r=SCRYPT_R,
+        p=SCRYPT_P,
+        dklen=32,
+    )
+    return f"scrypt_{SCRYPT_N}_{SCRYPT_R}_{SCRYPT_P}_{salt.hex()}_{digest.hex()}"
+
+
+def verify_token(token: str, verifier: str) -> bool:
+    match = TOKEN_VERIFIER.fullmatch(verifier)
+    if not match:
+        return False
+    salt_hex, expected = match.groups()
+    candidate = make_token_verifier(token, bytes.fromhex(salt_hex)).rsplit("_", 1)[1]
+    return hmac.compare_digest(candidate, expected)
+
+
 def parse_token_records(raw: str) -> tuple[TokenRecord, ...]:
     records: list[TokenRecord] = []
     names: set[str] = set()
     for item in filter(None, (part.strip() for part in raw.split(";"))):
         try:
-            name, digest, scopes_csv = item.split(":", 2)
+            name, verifier, scopes_csv = item.split(":", 2)
         except ValueError as exc:
-            raise ValueError("token records must use name:sha256:scope,scope") from exc
+            raise ValueError("token records must use name:scrypt-verifier:scope,scope") from exc
         scopes = frozenset(filter(None, (scope.strip() for scope in scopes_csv.split(","))))
         if not name or name in names:
             raise ValueError("token record names must be unique and non-empty")
-        if not TOKEN_DIGEST.fullmatch(digest):
-            raise ValueError(f"token record {name!r} does not contain a SHA-256 digest")
-        if len(set(digest)) < 4:
-            raise ValueError(f"token record {name!r} contains a placeholder digest")
+        if not TOKEN_VERIFIER.fullmatch(verifier):
+            raise ValueError(f"token record {name!r} does not contain a valid scrypt verifier")
         unknown = scopes - ALL_SCOPES
         if unknown:
             raise ValueError(f"token record {name!r} contains unknown scopes: {sorted(unknown)}")
         if not scopes:
             raise ValueError(f"token record {name!r} must contain at least one scope")
-        records.append(TokenRecord(name=name, digest=digest, scopes=scopes))
+        records.append(TokenRecord(name=name, verifier=verifier, scopes=scopes))
         names.add(name)
     return tuple(records)
 
@@ -114,6 +140,7 @@ class Settings(BaseSettings):
     splunk_password_file: Path | None = None
     splunk_ca_file: Path | None = None
     splunk_allowed_indexes: str = ""
+    splunk_results_index: str = ""
     splunk_default_earliest: str = "-24h"
 
     adx_cluster_url: str = ""
@@ -226,6 +253,12 @@ class Settings(BaseSettings):
                 errors.append("SPRINTER_SPLUNK_BASE_URL must use HTTPS")
             if not self.allowed_splunk_indexes:
                 errors.append("SPRINTER_SPLUNK_ALLOWED_INDEXES is required when Splunk is configured")
+            if not self.splunk_results_index:
+                errors.append("SPRINTER_SPLUNK_RESULTS_INDEX is required when Splunk is configured")
+            elif self.splunk_results_index not in self.allowed_splunk_indexes:
+                errors.append(
+                    "SPRINTER_SPLUNK_RESULTS_INDEX must be included in SPRINTER_SPLUNK_ALLOWED_INDEXES"
+                )
             if not self.splunk_username or not self.secret_value("splunk"):
                 errors.append("Splunk username and password secret are required")
         if self.splunk_hec_url:
@@ -256,11 +289,6 @@ class Settings(BaseSettings):
             errors.append(f"database directory is not writable: {self.database_path.parent}")
         if errors:
             raise ValueError("; ".join(errors))
-
-    @staticmethod
-    def hash_token(token: str) -> str:
-        return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
 
 @lru_cache
 def get_settings() -> Settings:

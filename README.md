@@ -36,8 +36,12 @@ tokens. The API must be published through an external HTTPS reverse proxy.
 
 5. Check liveness at `http://127.0.0.1:8080/livez`.
 
-See [operations](docs/operations.md), [architecture](docs/architecture.md), and
-the [threat model](docs/threat-model.md) before a production deployment.
+Continue with the [initial setup guide](docs/setup.md), then configure
+[Splunk, Azure Data Explorer, Confluence, and Teams](docs/integrations.md).
+The [Seer STIX guide](docs/seer-stix.md) defines the deterministic feed and
+review handoff. See [operations](docs/operations.md),
+[architecture](docs/architecture.md), and the
+[threat model](docs/threat-model.md) before a production deployment.
 
 ## Review API
 

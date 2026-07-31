@@ -101,7 +101,7 @@ class Container:
             if isinstance(supplied, list):
                 return self._normalise_evidence(supplied[: job.row_limit])
             raise RuntimeError("Splunk is not configured and no evidence was supplied")
-        index = next(iter(sorted(self.settings.allowed_splunk_indexes)))
+        index = self.settings.splunk_results_index
         if selector_type == "run":
             query = f'index="{index}" run_id="{self._splunk_literal(selector["run_id"])}"'
             if selector.get("workflow"):

@@ -20,10 +20,11 @@ exists when Teams is enabled.
 
 ## Teams installation
 
-Upload the notification-only manifest after replacing its placeholders. An
-authenticated lifecycle event discovers the destination in a disabled state.
-List it through `GET /api/v1/teams/installations`, then enable the intended
-destination through its `PATCH` endpoint. Removing the app deactivates it.
+Follow the [integration guide](integrations.md) to register the app and upload
+the notification-only manifest. An authenticated lifecycle event discovers the
+destination in a disabled state. List it through
+`GET /api/v1/teams/installations`, then enable the intended destination through
+its `PATCH` endpoint. Removing the app deactivates it.
 
 ## Backup
 
