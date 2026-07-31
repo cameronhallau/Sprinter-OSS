@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sprinter-security"
+version = "1.0.0"
+description = "Evidence-backed security detection review with Pi and Microsoft Teams notifications"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.13"
+authors = [{name = "Sprinter contributors"}]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: FastAPI",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+dependencies = [
+  "alembic==1.18.5",
+  "azure-identity==1.25.1",
+  "fastapi==0.141.1",
+  "httpx==0.28.1",
+  "microsoft-agents-activity==0.4.0",
+  "microsoft-agents-authentication-msal==0.4.0",
+  "microsoft-agents-hosting-aiohttp==0.4.0",
+  "microsoft-agents-hosting-core==0.4.0",
+  "microsoft-agents-hosting-teams==0.4.0",
+  "pydantic-settings==2.14.2",
+  "pysigma==1.4.0",
+  "pysigma-backend-splunk==2.1.0",
+  "pyyaml==6.0.3",
+  "sqlalchemy==2.0.51",
+  "uvicorn[standard]==0.52.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "bandit==1.8.6",
+  "mypy==1.18.2",
+  "pip-audit==2.9.0",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.0.0",
+  "ruff==0.14.14",
+]
+
+[project.scripts]
+sprinter-worker = "sprinter.worker:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sprinter"]
+
+[tool.hatch.build]
+include = [
+  "src/sprinter/**/*.py",
+  "src/sprinter/py.typed",
+  "src/sprinter/migrations/script.py.mako",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=sprinter --cov-report=term-missing"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC", "RUF"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["sprinter"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["microsoft_agents.*"]
+ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]

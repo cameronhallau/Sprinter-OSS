@@ -1,0 +1,66 @@
+name: sprinter
+
+x-service-defaults: &service-defaults
+  image: ghcr.io/example/sprinter:1.0.0
+  build:
+    context: .
+    args:
+      BUILD_REVISION: ${BUILD_REVISION:-local}
+  env_file:
+    - ${SPRINTER_ENV_FILE:-.env}
+  restart: unless-stopped
+  read_only: true
+  user: "10001:10001"
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=0700
+  volumes:
+    - sprinter_data:/var/lib/sprinter
+  deploy:
+    resources:
+      limits:
+        cpus: "2.0"
+        memory: 2G
+      reservations:
+        memory: 256M
+
+services:
+  api:
+    <<: *service-defaults
+    command:
+      - uvicorn
+      - sprinter.api:app_factory
+      - --factory
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --no-access-log
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8080/livez", timeout=2)
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    <<: *service-defaults
+    command:
+      - sprinter-worker
+    stop_grace_period: 30s
+    volumes:
+      - sprinter_data:/var/lib/sprinter
+      - pi_auth:/home/sprinter/.pi/agent
+
+volumes:
+  sprinter_data: {}
+  pi_auth: {}
