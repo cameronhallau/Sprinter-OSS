@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.10
-FROM node:22.19.0-bookworm-slim@sha256:4a4884e8a44826194dff92ba316264f392056cbe243dcc9fd3551e71cea02b90 AS pi
+FROM node:26.5.1-bookworm-slim@sha256:9e6f9357d371591e32ab6f2d8a26d63bdd0d17c29eee3f4f3e7e454d9634bf73 AS pi
 WORKDIR /opt/pi
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts \
