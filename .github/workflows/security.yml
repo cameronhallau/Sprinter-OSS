@@ -15,7 +15,7 @@ jobs:
   codeql:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38
         with:
           languages: python
@@ -24,7 +24,7 @@ jobs:
   secrets:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@bcfb9cce635345aac9996cedc19b2de8e01b894f
@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/dependency-review-action@1e966ba708e4b64bb0c9bfb7abb5a232840be16a
         with:
           fail-on-severity: high
@@ -45,7 +45,7 @@ jobs:
   container:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - run: docker build --tag sprinter:scan .
       - uses: aquasecurity/trivy-action@c07df6fec6fa692e6fd1200d50aaa1fdd66f03c8
         with:
